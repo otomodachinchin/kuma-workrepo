@@ -26,7 +26,7 @@ def main():
     password = args.password
     print('IP: %s' % (ip))
     netapp = EclNetApp(filer=ip, user=username, password=password)
-    netapp.hogehoge()
+    netapp.get_cluster_name()
 
 if __name__ == '__main__':
     main()

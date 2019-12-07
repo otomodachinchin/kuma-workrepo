@@ -10,7 +10,7 @@ import pprint
 import os
 
 import xmltodict
-#from slack_log_handler import SlackLogHandler
+from slack_log_handler import SlackLogHandler
 
 #sys.path.append(os.environ['HOME'] + os.sep + 'netapp-manageability-sdk' + os.sep + 'lib' + os.sep + 'python')
 #from NetApp import NaElement
@@ -106,15 +106,15 @@ class EclNetApp(object):
         #    self.log.addHandler(self.log_syh)
 
         # Slack log hander
-        #webhook_url = 'https://hooks.slack.com/services/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'
-        #self.slack_handler = SlackLogHandler(webhook_url=webhook_url)
-        #self.slack_handler.setLevel(logging.INFO)
-        #self.log.addHandler(self.slack_handler)
-        #slack_formatter = logging.Formatter(
-        #        '[%(levelname)s] [%(name)s] - %(message)s'
-        #)
-        #self.slack_handler.setFormatter(slack_formatter)
-        #self.log.addHandler(self.slack_handler)
+        webhook_url = 'https://hooks.slack.com/services/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'
+        self.slack_handler = SlackLogHandler(webhook_url=webhook_url)
+        self.slack_handler.setLevel(logging.INFO)
+        self.log.addHandler(self.slack_handler)
+        slack_formatter = logging.Formatter(
+                '[%(levelname)s] [%(name)s] - %(message)s'
+        )
+        self.slack_handler.setFormatter(slack_formatter)
+        self.log.addHandler(self.slack_handler)
 
     def init_naserver(self, filer='', user='', password=''):
         if not filer:
@@ -207,6 +207,17 @@ class EclNetApp(object):
             raise Exception('status != passed. Errno=%s, Reason=%s' % (response.results_errno(), response.results_reason()))
 
         xmldict = xmltodict.parse(response.sprintf())
+
+        orig_formatter = self.slack_handler.formatter
+        self.slack_handler.setFormatter(
+        logging.Formatter(
+                '[%(levelname)s] [%(name)s] - ```%(message)s```'
+        )
+        )
+
+        self.log.info(xmldict['results']['attributes']['cluster-identity-info']['cluster-name'])
+        self.slack_handler.setFormatter(orig_formatter)
+
 
         cluster_name = xmldict['results']['attributes']['cluster-identity-info']['cluster-name']
         self.cluster_name = cluster_name

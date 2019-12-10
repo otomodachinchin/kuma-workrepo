@@ -19,7 +19,6 @@ sys.path.append("NetApp")
 import NaElement
 from NaServer import *
 
-
 class EclNetApp(object):
 
     API_VERSION_MAJOR = 1
@@ -34,29 +33,6 @@ class EclNetApp(object):
     timeout = -1
     retry_iteration = 60
     retry_sleep = 10
-
-    region_sites = {
-        'lab1ec': ['lb1'], # for testing in Lab1
-        'lab3ec': ['lb3'],
-        'lab4ec': ['lb4'],
-        'jp1': ['kw1'],
-        'uk1': ['lo8', 'hh3'],
-        'sg1': ['sg2'],
-        'us1': ['va1'],
-        'jp2': ['os5', 'os1'],
-        'au1': ['sy1'],
-        'hk1': ['fd2'],
-        'de1': ['ff1', 'ff6'],
-        #'us2': ['ca1'],
-        'jp3': ['ku1'],
-        'jp5': ['tk2'],
-        'jp4': ['mt1'],
-        'fr1': ['pr1'],
-        'jp6': ['kj1'],
-    }
-
-    valid_node_models = ['AFF8060', 'AFF8080', 'AFF-A300', 'FAS8060', 'FAS8080'] # Added FAS8060/8080 since ONTAP8 says so even if they are actually AFF8060/8080
-
 
     def __init__(self, filer="", user="", password="", loglevel=logging.NOTSET):
         self.log = None
@@ -106,7 +82,9 @@ class EclNetApp(object):
         #    self.log.addHandler(self.log_syh)
 
         # Slack log hander
-        webhook_url = 'https://hooks.slack.com/services/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'
+        #webhook_url = 'https://hooks.slack.com/services/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'
+        #webhook_url = 'https://hooks.slack.com/services/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'
+        webhook_url = 'https://hooks.slack.com/services/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'
         self.slack_handler = SlackLogHandler(webhook_url=webhook_url)
         self.slack_handler.setLevel(logging.INFO)
         self.log.addHandler(self.slack_handler)
@@ -189,17 +167,23 @@ class EclNetApp(object):
 
         return response
 
-
-    def get_cluster_name(self):
+    def get_node_names(self):
         """
-        Get cluster name
-        :return: cluster name string
+        Get list of node names of cluster.
+        :return:  list of node names (sorted).
         """
-        if self.cluster_name:
-            return self.cluster_name
+        if self.nodes:
+            return self.nodes
 
-        api = 'cluster-identity-get'
+        api = "system-node-get-iter"
         request = NaElement(api)
+
+        desired_attributes = NaElement("desired-attributes")
+        node_details_info = NaElement("node-details-info")
+        node = NaElement("node")
+        node_details_info.child_add(node)
+        desired_attributes.child_add(node_details_info)
+        request.child_add(desired_attributes)
 
         response = self._invoke(request)
 
@@ -208,6 +192,49 @@ class EclNetApp(object):
 
         xmldict = xmltodict.parse(response.sprintf())
 
+        # num records should be 2
+        num_records = int(xmldict['results']['num-records'])
+        if num_records != 2:
+            Exception("num_records != 2. Something wrong")
+
+        nodes = []
+        for node in xmldict['results']['attributes-list']['node-details-info']:
+            nodes.append(node['node'])
+
+        nodes.sort()
+        self.nodes = nodes
+        return nodes
+
+    def system_cli(self, command, priv=''):
+        """
+        Excecute ONTAP CLI command via system-cli API
+        :param command:  command string
+        :param priv:  privilege to execute command. priv can be 'adv' or 'diag'
+        :return: True if command is successfully executed else False.
+        """
+        api = 'system-cli'
+        request = NaElement(api)
+
+        a = NaElement('args')
+
+        if priv and priv.startswith('diag'):
+            a.child_add_string('arg', 'set -privilege diagnostic -confirmations off;')
+        elif priv and priv.startswith('adv'):
+            a.child_add_string('arg', 'set -privilege advanced -confirmations off;')
+
+        for arg in command.split():
+            a.child_add_string('arg', arg)
+
+        request.child_add(a)
+
+        response = self._invoke(request)
+
+        if response.results_status() != 'passed':
+            raise Exception('status != passed. Errno=%s, Reason=%s' % (response.results_errno(), response.results_reason()))
+
+        xmldict = xmltodict.parse(response.sprintf())
+
+        self.log.info('===== system_cli(command: %s) =====' % command)
         orig_formatter = self.slack_handler.formatter
         self.slack_handler.setFormatter(
         logging.Formatter(
@@ -215,13 +242,43 @@ class EclNetApp(object):
         )
         )
 
-        self.log.info(xmldict['results']['attributes']['cluster-identity-info']['cluster-name'])
+        self.log.info(xmldict['results']['cli-output'])
         self.slack_handler.setFormatter(orig_formatter)
 
+        if xmldict['results']['cli-result-value'] == '1':
+            return True
+        return False
 
-        cluster_name = xmldict['results']['attributes']['cluster-identity-info']['cluster-name']
-        self.cluster_name = cluster_name
-        return cluster_name
+    def initial_setup_check_commands(self):
 
+        nodes = self.get_node_names()
 
-
+        command_list = [
+            'cluster identity show',
+            'system node show',
+            'system node image show',
+            'system node run -node %s -command sasadmin shelf' % nodes[0],
+            'system node run -node %s -command sasadmin shelf' % nodes[1],
+            'system node run -node %s -command sasadmin adapter_state' % nodes[0],
+            'system node run -node %s -command sasadmin adapter_state' % nodes[1],
+            'storage shelf acp show',
+            'disk show -broken',
+            'system chassis fru show',
+            'network interface show -lif cluster_mgmt -home-node %s -home-port a0c' % nodes[0],
+            'route show',
+            'timezone',
+            'dns show',
+            'network interface show -role node-mgmt -home-node %s -home-port e0M' % nodes[0],
+            'network interface show -role node-mgmt -home-node %s -home-port e0M' % nodes[1],
+            'system service-processor network show -fields ip-address ,netmask ,gateway ,status -address-family IPv4',
+            'ifgrp show -fields node, ifgrp, ports, mode, mac, distr-func, activeports',
+            'broadcast-domain show',
+            'network port show',
+            'storage aggregate show -root true -node %s -fields size,state,raidstatus' % nodes[0],
+            'storage aggregate show -root true -node %s -fields size,state,raidstatus' % nodes[1],
+            'license show'
+        ]
+        for command in command_list:
+            #time.sleep(1)
+            self.system_cli(command)
+        return True

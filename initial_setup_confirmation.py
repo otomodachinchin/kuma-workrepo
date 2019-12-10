@@ -67,6 +67,15 @@ class EclNetApp(object):
         self.log_sh.setFormatter(stderr_formatter)
         self.log.addHandler(self.log_sh)
 
+        # File handler
+        file_handler = logging.FileHandler('/var/tmp/setup-check.log')
+        file_handler.setLevel(logging.INFO)
+        file_formatter = logging.Formatter(
+            '%(asctime)s %(name)s:%(lineno)d %(levelname)s:\n' + '%(message)s' + '\n'
+        )
+        file_handler.setFormatter(file_formatter)
+        self.log.addHandler(file_handler)
+
         # Syslog Handler
         #addr = ''
         #s = platform.system()
@@ -82,9 +91,7 @@ class EclNetApp(object):
         #    self.log.addHandler(self.log_syh)
 
         # Slack log hander
-        #webhook_url = 'https://hooks.slack.com/services/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'
-        #webhook_url = 'https://hooks.slack.com/services/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'
-        webhook_url = 'https://hooks.slack.com/services/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'
+        webhook_url = 'https://hooks.slack.com/services/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'
         self.slack_handler = SlackLogHandler(webhook_url=webhook_url)
         self.slack_handler.setLevel(logging.INFO)
         self.log.addHandler(self.slack_handler)
@@ -234,6 +241,7 @@ class EclNetApp(object):
 
         xmldict = xmltodict.parse(response.sprintf())
 
+        # original slack formatter
         self.log.info('===== system_cli(command: %s) =====' % command)
         orig_formatter = self.slack_handler.formatter
         self.slack_handler.setFormatter(

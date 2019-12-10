@@ -17,7 +17,7 @@ def main():
 
     parser.add_argument('-p','--password', type=str,
                         help='Password for user',
-                        default='b3arm3tal',
+                        default='password123',
                         metavar='<password>')
 
     args = parser.parse_args()
@@ -30,4 +30,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-

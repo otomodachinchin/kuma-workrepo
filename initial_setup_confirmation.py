@@ -6,18 +6,19 @@ import time
 import traceback
 from os import popen
 import platform
-import pprint
+#import pprint
 import os
 
 import xmltodict
 from slack_log_handler import SlackLogHandler
 
-#sys.path.append(os.environ['HOME'] + os.sep + 'netapp-manageability-sdk' + os.sep + 'lib' + os.sep + 'python')
-#from NetApp import NaElement
+sys.path.append(os.environ['HOME'] + os.sep + 'netapp-manageability-sdk' + os.sep + 'lib' + os.sep + 'python')
+from NetApp import NaElement
+from NetApp import NaServer
 
-sys.path.append("NetApp")
-import NaElement
-from NaServer import *
+#sys.path.append("NetApp")
+#import NaElement
+#from NaServer import *
 
 class EclNetApp(object):
 
@@ -71,7 +72,8 @@ class EclNetApp(object):
         file_handler = logging.FileHandler('/var/tmp/setup-check.log')
         file_handler.setLevel(logging.INFO)
         file_formatter = logging.Formatter(
-            '%(asctime)s %(name)s:%(lineno)d %(levelname)s:\n' + '%(message)s' + '\n'
+            #'%(asctime)s %(name)s:%(lineno)d %(levelname)s:\n' + '%(message)s' + '\n'
+            '%(message)s\n'
         )
         file_handler.setFormatter(file_formatter)
         self.log.addHandler(file_handler)
@@ -91,7 +93,7 @@ class EclNetApp(object):
         #    self.log.addHandler(self.log_syh)
 
         # Slack log hander
-        webhook_url = 'https://hooks.slack.com/services/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'
+        webhook_url = 'https://hooks.slack.com/services/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'
         self.slack_handler = SlackLogHandler(webhook_url=webhook_url)
         self.slack_handler.setLevel(logging.INFO)
         self.log.addHandler(self.slack_handler)
@@ -284,7 +286,7 @@ class EclNetApp(object):
             'network port show',
             'storage aggregate show -root true -node %s -fields size,state,raidstatus' % nodes[0],
             'storage aggregate show -root true -node %s -fields size,state,raidstatus' % nodes[1],
-            'license show'
+            'system license show'
         ]
         for command in command_list:
             #time.sleep(1)

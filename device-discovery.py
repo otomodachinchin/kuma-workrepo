@@ -12,13 +12,13 @@ import os
 import xmltodict
 from slack_log_handler import SlackLogHandler
 
-sys.path.append(os.environ['HOME'] + os.sep + 'netapp-manageability-sdk' + os.sep + 'lib' + os.sep + 'python')
-from NetApp import NaElement
-from NetApp import NaServer
+#sys.path.append(os.environ['HOME'] + os.sep + 'netapp-manageability-sdk' + os.sep + 'lib' + os.sep + 'python')
+#from NetApp import NaElement
+#from NetApp import NaServer
 
-#sys.path.append("NetApp")
-#import NaElement
-#from NaServer import *
+sys.path.append("NetApp")
+import NaElement
+from NaServer import *
 
 class EclNetApp(object):
 
@@ -69,14 +69,14 @@ class EclNetApp(object):
         self.log.addHandler(self.log_sh)
 
         # File handler
-        file_handler = logging.FileHandler('/var/tmp/setup-check.log')
-        file_handler.setLevel(logging.INFO)
-        file_formatter = logging.Formatter(
+        #file_handler = logging.FileHandler('/var/tmp/setup-check.log')
+        #file_handler.setLevel(logging.INFO)
+        #file_formatter = logging.Formatter(
             #'%(asctime)s %(name)s:%(lineno)d %(levelname)s:\n' + '%(message)s' + '\n'
-            '%(message)s\n'
-        )
-        file_handler.setFormatter(file_formatter)
-        self.log.addHandler(file_handler)
+        #    '%(message)s\n'
+        #)
+        #file_handler.setFormatter(file_formatter)
+        #self.log.addHandler(file_handler)
 
         # Syslog Handler
         #addr = ''
@@ -93,15 +93,15 @@ class EclNetApp(object):
         #    self.log.addHandler(self.log_syh)
 
         # Slack log hander
-        webhook_url = 'https://hooks.slack.com/services/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'
-        self.slack_handler = SlackLogHandler(webhook_url=webhook_url)
-        self.slack_handler.setLevel(logging.INFO)
-        self.log.addHandler(self.slack_handler)
-        slack_formatter = logging.Formatter(
-                '[%(levelname)s] [%(name)s] - %(message)s'
-        )
-        self.slack_handler.setFormatter(slack_formatter)
-        self.log.addHandler(self.slack_handler)
+        #webhook_url = 'https://hooks.slack.com/services/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'
+        #self.slack_handler = SlackLogHandler(webhook_url=webhook_url)
+        #self.slack_handler.setLevel(logging.INFO)
+        #self.log.addHandler(self.slack_handler)
+        #slack_formatter = logging.Formatter(
+        #        '[%(levelname)s] [%(name)s] - %(message)s'
+        #)
+        #self.slack_handler.setFormatter(slack_formatter)
+        #self.log.addHandler(self.slack_handler)
 
     def init_naserver(self, filer='', user='', password=''):
         if not filer:
@@ -259,36 +259,4 @@ class EclNetApp(object):
             return True
         return False
 
-    def initial_setup_check_commands(self):
 
-        nodes = self.get_node_names()
-
-        command_list = [
-            'cluster identity show',
-            'system node show',
-            'system node image show',
-            'system node run -node %s -command sasadmin shelf' % nodes[0],
-            'system node run -node %s -command sasadmin shelf' % nodes[1],
-            'system node run -node %s -command sasadmin adapter_state' % nodes[0],
-            'system node run -node %s -command sasadmin adapter_state' % nodes[1],
-            'storage shelf acp show',
-            'disk show -broken',
-            'system chassis fru show',
-            'network interface show -lif cluster_mgmt -home-node %s -home-port a0c' % nodes[0],
-            'route show',
-            'timezone',
-            'dns show',
-            'network interface show -role node-mgmt -home-node %s -home-port e0M' % nodes[0],
-            'network interface show -role node-mgmt -home-node %s -home-port e0M' % nodes[1],
-            'system service-processor network show -fields ip-address ,netmask ,gateway ,status -address-family IPv4',
-            'ifgrp show -fields node, ifgrp, ports, mode, mac, distr-func, activeports',
-            'broadcast-domain show',
-            'network port show',
-            'storage aggregate show -root true -node %s -fields size,state,raidstatus' % nodes[0],
-            'storage aggregate show -root true -node %s -fields size,state,raidstatus' % nodes[1],
-            'system license show'
-        ]
-        for command in command_list:
-            #time.sleep(1)
-            self.system_cli(command)
-        return True

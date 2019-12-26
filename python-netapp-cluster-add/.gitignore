@@ -1,0 +1,11 @@
+*.log
+*.pyc
+*.swp
+test.json
+tmp
+.DS_Store
+config.ini
+*.old
+__pycache__
+gitignore/*
+
